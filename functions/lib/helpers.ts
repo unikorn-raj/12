@@ -86,12 +86,12 @@ export async function generateContentWithRetry(
 ) {
   let lastError = "Unknown Gemini API error";
 
-  const requestedModel = options.model || "gemini-2.5-flash";
+  const requestedModel = options.model || "gemini-3.6-flash";
 
   const modelsToTry = Array.from(
     new Set([
       requestedModel,
-      "gemini-2.5-flash",
+      "gemini-3.6-flash",
     ])
   );
 
