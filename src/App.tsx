@@ -127,45 +127,87 @@ export default function App() {
     return () => unsubscribe();
   }, [userPlan]);
 
-  // Sync / Load Cases isolated strictly by user auth status
+  const prevUserIdRef = React.useRef<string | null>(null);
+
+  // Sync / Load Cases isolated strictly by user auth status without losing state on session refresh
   useEffect(() => {
-    setSelectedCaseId(null);
-    setIsCreatingNew(false);
-    
+    const currentUid = user?.uid || null;
+    const isUserSwitch = currentUid !== prevUserIdRef.current;
+    prevUserIdRef.current = currentUid;
+
+    const storageKey = currentUid ? `unikorn360_cases_${currentUid}` : "unikorn360_cases_guest";
+
+    // 1. Read existing local cases from localStorage
+    let localCases: PropertyCase[] = [];
+    try {
+      const savedStr = localStorage.getItem(storageKey);
+      if (savedStr) {
+        localCases = JSON.parse(savedStr);
+      }
+    } catch (e) {
+      console.error("Error reading local cases:", e);
+    }
+
+    // Only reset active selection and replace cases if user identity actually switched
+    if (isUserSwitch) {
+      setSelectedCaseId(null);
+      setIsCreatingNew(false);
+      setCases(localCases);
+    }
+
+    // 2. Fetch cloud cases if user is authenticated
     if (user) {
-      setIsAuthLoading(true);
       fetchCloudCases(user.uid)
         .then((cloudCases) => {
-          const userCases = Array.isArray(cloudCases) ? cloudCases : [];
-          setCases(userCases);
-          try {
-            localStorage.setItem(`unikorn360_cases_${user.uid}`, JSON.stringify(userCases));
-          } catch (e) {
-            console.error("Local save error:", e);
-          }
+          if (!Array.isArray(cloudCases)) return;
+
+          // Merge cloud cases and local cases by ID to prevent loss of local cases or duplicates
+          const caseMap = new Map<string, PropertyCase>();
+
+          // Add local cases
+          localCases.forEach((c) => {
+            if (c?.id) caseMap.set(c.id, c);
+          });
+
+          // Add active memory state cases
+          setCases((prevCases) => {
+            prevCases.forEach((c) => {
+              if (c?.id) caseMap.set(c.id, c);
+            });
+
+            // Add cloud cases (overwriting with latest cloud state if present)
+            cloudCases.forEach((c) => {
+              if (c?.id) caseMap.set(c.id, c);
+            });
+
+            const merged = Array.from(caseMap.values()).sort(
+              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
+
+            try {
+              localStorage.setItem(`unikorn360_cases_${user.uid}`, JSON.stringify(merged));
+            } catch (e) {
+              console.error("Local save error:", e);
+            }
+
+            return merged;
+          });
         })
         .catch((err) => {
           console.error("Failed to fetch cloud cases:", err);
-          setCases([]);
-        })
-        .finally(() => {
-          setIsAuthLoading(false);
+          // DO NOT execute setCases([])! Retain existing/local cases.
         });
-    } else {
-      setCases([]);
     }
   }, [user]);
 
   // Save cases locally and to user storage key
   const saveCases = (updatedCases: PropertyCase[]) => {
     setCases(updatedCases);
-    if (user) {
-      const key = `unikorn360_cases_${user.uid}`;
-      try {
-        localStorage.setItem(key, JSON.stringify(updatedCases));
-      } catch (e) {
-        console.error("Local storage write error:", e);
-      }
+    const key = user ? `unikorn360_cases_${user.uid}` : "unikorn360_cases_guest";
+    try {
+      localStorage.setItem(key, JSON.stringify(updatedCases));
+    } catch (e) {
+      console.error("Local storage write error:", e);
     }
   };
 
@@ -258,19 +300,18 @@ export default function App() {
 
       const updated = [newCase, ...cases];
       
-      // Sync with Supabase Cloud Database if user is signed in
-      if (user) {
-        try {
-          await syncCaseToCloud(user.uid, newCase);
-        } catch (err) {
-          console.error("Failed to sync new case to cloud:", err);
-        }
-      }
-      
+      // 1. Immediately save locally and set active selection
       saveCases(updated);
       setSelectedCaseId(newCase.id);
       setIsCreatingNew(false);
       setActiveTab("analysis");
+
+      // 2. Sync with Supabase Cloud Database asynchronously in background
+      if (user) {
+        syncCaseToCloud(user.uid, newCase).catch((err) => {
+          console.error("Failed to sync new case to cloud:", err);
+        });
+      }
     } catch (err: any) {
       console.error("Case creation failed:", err);
       setErrorText(err.message || "Failed to analyze the dispute. Please verify the backend connection.");

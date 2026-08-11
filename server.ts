@@ -464,6 +464,9 @@ Analyze cases strictly using the 12-stage framework including Precedent Intellig
 Always respond in valid, clean JSON according to the schema provided.
 Ensure the analysis is highly customized, actionable, and legally sound.
 
+GOVERNMENT ORDERS & CIRCULARS ACCURACY MANDATE:
+When identifying Government Orders (G.O.) or Circulars in Stage 11, list ONLY actual, verified records in 'governmentOrders' and 'circulars' arrays. Do not invent fake order numbers or fabricated counts. 'governmentOrdersCount' and 'circularsCount' must strictly equal the exact length of these arrays.
+
 CRITICAL LANGUAGE MANDATE:
 Since this platform serves clients and advocates across Tamil Nadu and South India, generate ALL user-facing analysis descriptions, legal positions, risk factor lists, client replies, action items, precedent summaries, court reasoning, strategy recommendations, and package descriptions in formal, clear, and professional Tamil (தமிழ்). Keep only the JSON keys in English as specified by the schema.
     `;
@@ -659,7 +662,33 @@ Since this platform serves clients and advocates across Tamil Nadu and South Ind
                     highCourtCount: { type: Type.INTEGER },
                     governmentOrdersCount: { type: Type.INTEGER },
                     circularsCount: { type: Type.INTEGER },
-                    statutesList: { type: Type.ARRAY, items: { type: Type.STRING } }
+                    statutesList: { type: Type.ARRAY, items: { type: Type.STRING } },
+                    governmentOrders: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          orderNumber: { type: Type.STRING },
+                          date: { type: Type.STRING },
+                          department: { type: Type.STRING },
+                          subject: { type: Type.STRING },
+                          relevance: { type: Type.STRING }
+                        }
+                      }
+                    },
+                    circulars: {
+                      type: Type.ARRAY,
+                      items: {
+                        type: Type.OBJECT,
+                        properties: {
+                          circularNumber: { type: Type.STRING },
+                          date: { type: Type.STRING },
+                          department: { type: Type.STRING },
+                          subject: { type: Type.STRING },
+                          relevance: { type: Type.STRING }
+                        }
+                      }
+                    }
                   }
                 },
                 strategyRecommendationFromPrecedents: { type: Type.STRING }
@@ -774,6 +803,20 @@ Since this platform serves clients and advocates across Tamil Nadu and South Ind
     });
 
     const parsedData = cleanAndParseJson(response.text || "{}");
+    if (parsedData?.stage11?.similarCases && Array.isArray(parsedData.stage11.similarCases)) {
+      parsedData.stage11.similarCasesCount = parsedData.stage11.similarCases.length;
+      parsedData.stage11.similarCases = parsedData.stage11.similarCases.map((item: any, idx: number) => ({
+        ...item,
+        id: item.id || `prec_${idx + 1}`
+      }));
+    }
+    if (parsedData?.stage11?.authoritiesSummary) {
+      const auth = parsedData.stage11.authoritiesSummary;
+      auth.governmentOrders = Array.isArray(auth.governmentOrders) ? auth.governmentOrders : [];
+      auth.circulars = Array.isArray(auth.circulars) ? auth.circulars : [];
+      auth.governmentOrdersCount = auth.governmentOrders.length;
+      auth.circularsCount = auth.circulars.length;
+    }
     res.json(parsedData);
   } catch (error: any) {
     console.error("Analysis Error:", error);

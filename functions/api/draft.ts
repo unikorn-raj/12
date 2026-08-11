@@ -68,7 +68,7 @@ CRITICAL: Since this system serves Tier-2 Tamil Nadu, you MUST draft the complet
     `;
 
     const response = await generateContentWithRetry(ai, {
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         systemInstruction,

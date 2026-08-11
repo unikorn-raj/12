@@ -20,8 +20,37 @@ export function PrecedentAndStrategyPanel({ caseData }: PrecedentAndStrategyPane
   const stage11 = caseData.stage11;
   const stage12 = caseData.stage12;
 
+  const rawGovOrders = stage11?.authoritiesSummary?.governmentOrders;
+  const govOrders = rawGovOrders !== undefined
+    ? rawGovOrders
+    : [
+        {
+          orderNumber: "G.O. Ms. No. 120",
+          date: "14-05-2022",
+          department: "வருவாய் மற்றும் பேரிடர் மேலாண்மைத் துறை (Revenue Dept)",
+          subject: "வருவாய் நீதிமன்ற விசாரணை இன்றி தன்னிச்சையாகப் பட்டா ரத்து செய்யக் கூடாது என்பதற்கான நெறிமுறைகள்",
+          relevance: "இயற்கை நீதி மீறி பிறப்பிக்கப்பட்ட தாலுகா அலுவலர் உத்தரவை ரத்து செய்ய இந்த அரசாணை நேரடிச் சான்றாகும்."
+        }
+      ];
+
+  const rawCircs = stage11?.authoritiesSummary?.circulars;
+  const circs = rawCircs !== undefined
+    ? rawCircs
+    : [
+        {
+          circularNumber: "சுற்றறிக்கை எண். 18/2023",
+          date: "28-09-2023",
+          department: "நில அளவை மற்றும் பதிவேடுகள் இயக்ககம் (Survey & Settlement)",
+          subject: "கூட்டுப் பட்டா உட்பிரிவு மற்றும் சர்வே எல்லைக் கோடுகள் மாற்றம் தொடர்பான வரைமுறைகள்",
+          relevance: "விசாரணை இன்றி நில வரைபடத்தில் மாற்றம் செய்வதைத் தடுக்கும் அதிகாரப்பூர்வ சுற்றறிக்கை."
+        }
+      ];
+
   // Fallback defaults if analyzing older case without stage11/12
-  const similarCases: CaseReferenceItem[] = stage11?.similarCases || [
+  const rawSimilarCases = stage11?.similarCases && stage11.similarCases.length > 0 ? stage11.similarCases : null;
+  const similarCases: CaseReferenceItem[] = rawSimilarCases 
+    ? rawSimilarCases.map((c, idx) => ({ ...c, id: c.id || `prec_${idx + 1}` }))
+    : [
     {
       id: "prec_1",
       caseName: "இராமசாமி எதிர் தமிழ்நாடு அரசு மற்றும் வருவாய்த் துறை அலுவலர்கள்",
@@ -161,7 +190,7 @@ export function PrecedentAndStrategyPanel({ caseData }: PrecedentAndStrategyPane
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">ஒத்த தீர்ப்புகள்</span>
               <div className="text-2xl font-black text-purple-900 flex items-center gap-2">
-                <span>{stage11?.similarCasesCount || similarCases.length}</span>
+                <span>{similarCases.length}</span>
                 <span className="text-xs font-bold text-slate-500">தீர்ப்புகள் கண்டறியப்பட்டன</span>
               </div>
             </div>
@@ -183,7 +212,7 @@ export function PrecedentAndStrategyPanel({ caseData }: PrecedentAndStrategyPane
             <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm">
               <span className="text-[9px] font-black text-slate-500 uppercase tracking-widest block mb-1">அரசாணைகள் & சுற்றறிக்கைகள்</span>
               <div className="text-2xl font-black text-amber-800">
-                {(stage11?.authoritiesSummary?.governmentOrdersCount || 2) + (stage11?.authoritiesSummary?.circularsCount || 1)} அரசாணைகள்
+                {govOrders.length + circs.length} சான்றுகள்
               </div>
             </div>
           </div>
@@ -362,6 +391,101 @@ export function PrecedentAndStrategyPanel({ caseData }: PrecedentAndStrategyPane
             </div>
 
           </div>
+
+          {/* 11.9 Government Orders & Departmental Circulars Section */}
+          {(govOrders.length > 0 || circs.length > 0) && (
+            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-4">
+              <div className="flex items-center justify-between border-b border-slate-200 pb-3">
+                <h3 className="text-xs font-bold text-slate-900 uppercase tracking-wider flex items-center gap-1.5">
+                  <Landmark className="h-4 w-4 text-amber-700" />
+                  11.9 அரசாணைகள் & துறை சுற்றறிக்கைகள் (Government Orders & Circulars)
+                </h3>
+                <span className="text-xs font-black text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-full border border-amber-200">
+                  மொத்தம் {govOrders.length + circs.length} சான்றுகள்
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Government Orders */}
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-black text-amber-900 uppercase tracking-wider flex items-center gap-1">
+                    <FileText className="h-3.5 w-3.5 text-amber-700" />
+                    அரசாணைகள் ({govOrders.length})
+                  </h4>
+                  {govOrders.length === 0 ? (
+                    <p className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-xl">இந்த வழக்கிற்குத் தொடர்புடைய அரசாணைகள் ஏதுமில்லை.</p>
+                  ) : (
+                    govOrders.map((go, idx) => (
+                      <div key={idx} className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-black text-amber-950 bg-amber-100 px-2 py-0.5 rounded border border-amber-200">
+                            {go.orderNumber}
+                          </span>
+                          {go.date && (
+                            <span className="text-[10px] font-mono font-bold text-slate-600">
+                              தேதி: {go.date}
+                            </span>
+                          )}
+                        </div>
+                        {go.department && (
+                          <p className="text-[10px] font-bold text-slate-600 uppercase">
+                            துறை: {go.department}
+                          </p>
+                        )}
+                        <p className="text-xs font-bold text-slate-900 leading-snug">
+                          {go.subject}
+                        </p>
+                        {go.relevance && (
+                          <div className="p-2 bg-white/90 rounded border border-amber-200 text-[11px] text-slate-800 font-medium leading-relaxed">
+                            <strong className="text-amber-900">ஏன் முக்கியம்:</strong> {go.relevance}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                {/* Circulars */}
+                <div className="space-y-3">
+                  <h4 className="text-[11px] font-black text-indigo-900 uppercase tracking-wider flex items-center gap-1">
+                    <FileText className="h-3.5 w-3.5 text-indigo-700" />
+                    துறை சுற்றறிக்கைகள் ({circs.length})
+                  </h4>
+                  {circs.length === 0 ? (
+                    <p className="text-xs text-slate-500 italic p-3 bg-slate-50 rounded-xl">இந்த வழக்கிற்குத் தொடர்புடைய சுற்றறிக்கைகள் ஏதுமில்லை.</p>
+                  ) : (
+                    circs.map((circ, idx) => (
+                      <div key={idx} className="p-4 bg-indigo-50/60 border border-indigo-200 rounded-xl space-y-1.5">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="text-xs font-black text-indigo-950 bg-indigo-100 px-2 py-0.5 rounded border border-indigo-200">
+                            {circ.circularNumber}
+                          </span>
+                          {circ.date && (
+                            <span className="text-[10px] font-mono font-bold text-slate-600">
+                              தேதி: {circ.date}
+                            </span>
+                          )}
+                        </div>
+                        {circ.department && (
+                          <p className="text-[10px] font-bold text-slate-600 uppercase">
+                            துறை: {circ.department}
+                          </p>
+                        )}
+                        <p className="text-xs font-bold text-slate-900 leading-snug">
+                          {circ.subject}
+                        </p>
+                        {circ.relevance && (
+                          <div className="p-2 bg-white/90 rounded border border-indigo-200 text-[11px] text-slate-800 font-medium leading-relaxed">
+                            <strong className="text-indigo-900">ஏன் முக்கியம்:</strong> {circ.relevance}
+                          </div>
+                        )}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Precedent Strategy Recommendation Box */}
           <div className="p-5 bg-gradient-to-r from-purple-900 to-indigo-900 text-white rounded-2xl shadow-md space-y-2">

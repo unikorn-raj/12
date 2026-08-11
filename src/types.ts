@@ -112,6 +112,22 @@ export interface CaseReferenceItem {
   authoritiesCited: string[];
 }
 
+export interface GovernmentOrderItem {
+  orderNumber: string;
+  date: string;
+  department: string;
+  subject: string;
+  relevance: string;
+}
+
+export interface CircularItem {
+  circularNumber: string;
+  date: string;
+  department: string;
+  subject: string;
+  relevance: string;
+}
+
 export interface Stage11PrecedentIntelligence {
   similarCasesCount: number;
   averageSimilarityScore: number;
@@ -128,6 +144,8 @@ export interface Stage11PrecedentIntelligence {
     governmentOrdersCount: number;
     circularsCount: number;
     statutesList: string[];
+    governmentOrders?: GovernmentOrderItem[];
+    circulars?: CircularItem[];
   };
   strategyRecommendationFromPrecedents: string;
 }
