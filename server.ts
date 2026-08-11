@@ -176,8 +176,8 @@ async function generateContentWithRetry(
 ) {
   let delay = 1000;
   // Models to attempt in sequence
-  const requestedModel = options.model || "gemini-2.5-flash";
-  const modelsToTry = Array.from(new Set([requestedModel, "gemini-2.5-flash"]));
+  const requestedModel = options.model || "gemini-3.6-flash";
+  const modelsToTry = Array.from(new Set([requestedModel, "gemini-3.6-flash"]));
 
   for (const modelName of modelsToTry) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
@@ -469,7 +469,7 @@ Since this platform serves clients and advocates across Tamil Nadu and South Ind
     `;
 
     const response = await generateContentWithRetry(ai, {
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         systemInstruction,
@@ -831,7 +831,7 @@ CRITICAL: Since this system serves Tier-2 Tamil Nadu, you MUST draft the complet
     `;
 
     const response = await generateContentWithRetry(ai, {
-      model: "gemini-2.5-flash",
+      model: "gemini-3.6-flash",
       contents: prompt,
       config: {
         systemInstruction,
