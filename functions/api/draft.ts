@@ -98,6 +98,12 @@ CRITICAL: Since this system serves Tier-2 Tamil Nadu, you MUST draft the complet
     return jsonResponse(parsedData);
   } catch (error: any) {
     console.error("Drafting Error:", error);
+    if (error?.message === "GEMINI_TIMEOUT" || error?.isTimeout) {
+      return jsonResponse({
+        error: "Drafting timed out",
+        message: "The document drafting took too long to complete. Please try again."
+      }, 504);
+    }
     return jsonResponse({ error: error.message || "Failed to draft custom legal document." }, 500);
   }
 };

@@ -541,6 +541,12 @@ Since this platform serves clients and advocates across Tamil Nadu and South Ind
     return jsonResponse(parsedData);
   } catch (error: any) {
     console.error("Analysis Error:", error);
+    if (error?.message === "GEMINI_TIMEOUT" || error?.isTimeout) {
+      return jsonResponse({
+        error: "Analysis timed out",
+        message: "The analysis took too long to complete. Please try again."
+      }, 504);
+    }
     return jsonResponse({ error: error.message || "Failed to analyze case." }, 500);
   }
 };

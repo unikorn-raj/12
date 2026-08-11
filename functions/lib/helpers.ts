@@ -60,22 +60,56 @@ export async function generateContentWithRetry(
     contents: any;
     config?: any;
   },
-  maxRetries = 3
+  maxRetries = 3,
+  maxTotalTimeMs = 80000
 ) {
+  const startTime = Date.now();
   let delay = 1000;
   const requestedModel = options.model || "gemini-3.6-flash";
   const modelsToTry = Array.from(new Set([requestedModel, "gemini-3.6-flash"]));
 
   for (const modelName of modelsToTry) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
+      const elapsed = Date.now() - startTime;
+      if (elapsed >= maxTotalTimeMs) {
+        const timeoutErr = new Error("GEMINI_TIMEOUT");
+        (timeoutErr as any).isTimeout = true;
+        throw timeoutErr;
+      }
+
+      const remainingTime = maxTotalTimeMs - elapsed;
+
       try {
-        const res = await ai.models.generateContent({
+        let timeoutHandle: any;
+        const timerPromise = new Promise((_, reject) => {
+          timeoutHandle = setTimeout(() => {
+            const err = new Error("GEMINI_TIMEOUT");
+            (err as any).isTimeout = true;
+            reject(err);
+          }, remainingTime);
+        });
+
+        const callPromise = ai.models.generateContent({
           ...options,
           model: modelName,
         });
+
+        const res: any = await Promise.race([callPromise, timerPromise]);
+        clearTimeout(timeoutHandle);
         return res;
       } catch (err: any) {
+        if (err?.message === "GEMINI_TIMEOUT" || err?.isTimeout) {
+          throw err;
+        }
+
         const errStr = String(err?.message || err);
+        const elapsedAfter = Date.now() - startTime;
+        if (elapsedAfter >= maxTotalTimeMs) {
+          const timeoutErr = new Error("GEMINI_TIMEOUT");
+          (timeoutErr as any).isTimeout = true;
+          throw timeoutErr;
+        }
+
         const isTransient =
           err?.status === 503 ||
           err?.code === 503 ||
@@ -92,6 +126,12 @@ export async function generateContentWithRetry(
           errStr.includes("RESOURCE_EXHAUSTED");
 
         if (isTransient && attempt < maxRetries - 1) {
+          if (elapsedAfter + delay >= maxTotalTimeMs) {
+            console.warn(`Gemini API transient retry skipped due to deadline (${elapsedAfter}ms elapsed).`);
+            const timeoutErr = new Error("GEMINI_TIMEOUT");
+            (timeoutErr as any).isTimeout = true;
+            throw timeoutErr;
+          }
           console.warn(`Gemini API transient capacity notice (${errStr}). Retrying attempt ${attempt + 1}/${maxRetries} in ${delay}ms...`);
           await new Promise((r) => setTimeout(r, delay));
           delay *= 1.5;

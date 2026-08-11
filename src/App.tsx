@@ -274,7 +274,18 @@ export default function App() {
       }
 
       if (!response.ok) {
-        const errorMsg = responseJson?.error || responseText || "The Unikorn360 engine returned an unexpected error.";
+        const trimmedText = (responseText || "").trim().toLowerCase();
+        const isHtml = 
+          trimmedText.startsWith("<!doctype") ||
+          trimmedText.startsWith("<html") ||
+          responseText.includes("Cloudflare Error 524") ||
+          responseText.includes("Cloudflare Error 502") ||
+          responseText.includes("Cloudflare Error 500") ||
+          responseText.includes("524: A timeout occurred");
+
+        const errorMsg = isHtml
+          ? "சேவையக இணைப்பு நேரம் முடிந்தது. தயவுசெய்து சிறிது நேரம் கழித்து மீண்டும் முயற்சிக்கவும்."
+          : (responseJson?.message || responseJson?.error || responseText || "The Unikorn360 engine returned an unexpected error.");
         throw new Error(errorMsg);
       }
 
