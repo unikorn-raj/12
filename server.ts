@@ -177,7 +177,7 @@ async function generateContentWithRetry(
   let delay = 1000;
   // Models to attempt in sequence
   const requestedModel = options.model || "gemini-2.5-flash";
-  const modelsToTry = Array.from(new Set([requestedModel, "gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"]));
+  const modelsToTry = Array.from(new Set([requestedModel, "gemini-2.5-flash"]));
 
   for (const modelName of modelsToTry) {
     for (let attempt = 0; attempt < maxRetries; attempt++) {
