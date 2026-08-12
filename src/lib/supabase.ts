@@ -229,36 +229,62 @@ export const subscribeToAuthChanges = (callback: (userProfile: UserProfile | nul
 
 // ----------------- Database Case Sync Operations -----------------
 export const syncCaseToCloud = async (userId: string, caseData: any) => {
-  const updatedCase = { ...caseData, userId, updatedAt: new Date().toISOString() };
+  const now = new Date().toISOString();
+  const createdAt = caseData?.createdAt || now;
+  const updatedAt = caseData?.updatedAt || now;
 
-  try {
-    const { error } = await supabase.from(CASES_TABLE).upsert(updatedCase, { onConflict: "id" });
-    if (error) {
-      console.warn("Supabase case sync warning:", error);
-    }
-  } catch (error) {
+  const fullCaseData = {
+    ...caseData,
+    userId,
+    createdAt,
+    updatedAt
+  };
+
+  const payload = {
+    id: caseData.id,
+    user_id: userId,
+    created_at: createdAt,
+    updated_at: updatedAt,
+    case_data: fullCaseData
+  };
+
+  const { error } = await supabase.from(CASES_TABLE).upsert(payload, { onConflict: "id" });
+  if (error) {
     console.error("Supabase case sync error:", error);
+    throw error;
   }
-  return updatedCase;
+  return fullCaseData;
 };
 
 export const fetchCloudCases = async (userId: string) => {
-  try {
-    const { data, error } = await supabase.from(CASES_TABLE).select("*").eq("userId", userId);
-    if (error) {
-      console.warn("Supabase fetch cases error:", error);
-      return [];
-    }
-    return data || [];
-  } catch (error) {
+  const { data, error } = await supabase
+    .from(CASES_TABLE)
+    .select("id,user_id,created_at,updated_at,case_data")
+    .eq("user_id", userId);
+
+  if (error) {
     console.error("Supabase fetch cases error:", error);
+    throw error;
+  }
+
+  if (!data || !Array.isArray(data)) {
     return [];
   }
+
+  return data.map((row: any) => {
+    const baseCaseData = row.case_data && typeof row.case_data === "object" ? row.case_data : {};
+    return {
+      ...baseCaseData,
+      id: row.id || baseCaseData.id,
+      createdAt: row.created_at || baseCaseData.createdAt,
+      updatedAt: row.updated_at || baseCaseData.updatedAt
+    };
+  });
 };
 
 export const deleteCloudCase = async (userId: string, caseId: string) => {
   try {
-    const { error } = await supabase.from(CASES_TABLE).delete().eq("id", caseId);
+    const { error } = await supabase.from(CASES_TABLE).delete().eq("id", caseId).eq("user_id", userId);
     if (error) console.warn("Supabase delete case error:", error);
   } catch (error) {
     console.error("Supabase delete case error:", error);

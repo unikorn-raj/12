@@ -132,7 +132,8 @@ export default function App() {
   // Sync / Load Cases isolated strictly by user auth status without losing state on session refresh
   useEffect(() => {
     const currentUid = user?.uid || null;
-    const isUserSwitch = currentUid !== prevUserIdRef.current;
+    const prevUid = prevUserIdRef.current;
+    const isUserSwitch = currentUid !== prevUid;
     prevUserIdRef.current = currentUid;
 
     const storageKey = currentUid ? `unikorn360_cases_${currentUid}` : "unikorn360_cases_guest";
@@ -146,6 +147,28 @@ export default function App() {
       }
     } catch (e) {
       console.error("Error reading local cases:", e);
+    }
+
+    // Guest -> Authenticated User Migration
+    // If user just logged in, migrate guest cases into user storage key without duplicates
+    if (currentUid && (!prevUid || prevUid === "guest")) {
+      try {
+        const guestSavedStr = localStorage.getItem("unikorn360_cases_guest");
+        if (guestSavedStr) {
+          const guestCases: PropertyCase[] = JSON.parse(guestSavedStr);
+          if (Array.isArray(guestCases) && guestCases.length > 0) {
+            const caseMap = new Map<string, PropertyCase>();
+            localCases.forEach((c) => { if (c?.id) caseMap.set(c.id, c); });
+            guestCases.forEach((c) => { if (c?.id && !caseMap.has(c.id)) caseMap.set(c.id, c); });
+            localCases = Array.from(caseMap.values()).sort(
+              (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+            );
+            localStorage.setItem(storageKey, JSON.stringify(localCases));
+          }
+        }
+      } catch (e) {
+        console.error("Error migrating guest cases:", e);
+      }
     }
 
     // Only reset active selection and replace cases if user identity actually switched
@@ -175,7 +198,7 @@ export default function App() {
               if (c?.id) caseMap.set(c.id, c);
             });
 
-            // Add cloud cases (overwriting with latest cloud state if present)
+            // Add cloud cases (updating with latest cloud state if present)
             cloudCases.forEach((c) => {
               if (c?.id) caseMap.set(c.id, c);
             });
@@ -194,8 +217,8 @@ export default function App() {
           });
         })
         .catch((err) => {
-          console.error("Failed to fetch cloud cases:", err);
-          // DO NOT execute setCases([])! Retain existing/local cases.
+          console.error("Failed to fetch cloud cases (local persistence retained):", err);
+          // DO NOT execute setCases([])! Retain existing/local cases intact.
         });
     }
   }, [user]);
